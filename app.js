@@ -3,38 +3,36 @@ const express = require('express');
 const app = express();
 const websocket = require('ws');
 const utils = require('./lib/index');
+const { request } = require('express');
 
-//let connection = null;
-const server = http.createServer(app);
+//const server = http.createServer(app);
 
-const ws = new websocket.Server({ 'port':3000, 'path':'/websocket' });
+const wss = new websocket.Server({ noServer:true });
 
-ws.on("open", (request) => {
-    console.log("Websocket opened! Connection from: some device"); 
-    ws.on("connection", (data)=>{
-        let vehicleSpeed;
-        utils.getSpeed()
-        .then((res)=>{
-            //TODO: Funcion que analice en tiempo real los datos de MongoDB (INTI).
-            vehicleSpeed = JSON.stringify(res[0].paquete.Velocidad);
-            data.send("Velocidad del vehiculo de " + vehicleSpeed + " km/hs");
-        })
-        .catch(e=>console.log(e));        
+wss.on("connection", (ws)=>{
+    ws.on("message", (message)=>{
+        console.log(message);
     });
-});  
-ws.on("message", (data)=>{
-    console.log(data);
+
+    ws.on("close", ()=>{
+        console.log("connection closed!")
+    });
+
+    let vehicleSpeed;
+    utils.getSpeed()
+    .then((res)=>{
+        //TODO: Funcion que analice en tiempo real los datos de MongoDB (INTI).
+        vehicleSpeed = JSON.stringify(res[0].paquete.Velocidad);
+        ws.send("Velocidad del vehiculo de " + vehicleSpeed + " km/hs");
+
+    });
 });
-
-ws.on("close", ()=>console.log("Peer closed!"));
-
-
-    
-    //TODO: Verificar que sea para vehiculos en especifico y no para todos. *Se podría usar un token guardado en mongo para reconocer los vehiculos.
-    //      Verificar que funcione correctamente. / Armar una función genérica para enviar datos a la App cliente.
-        
-
-
-app.listen(8000, ()=>{
+const servidor = app.listen(8000, ()=>{
     console.log("Server listening on port: 8000");
 });
+servidor.on("upgrade", (request,socket,head)=>{
+    wss.handleUpgrade(request,socket,head, (ws)=>{
+        wss.emit("connection",ws,request);
+    });
+});
+
